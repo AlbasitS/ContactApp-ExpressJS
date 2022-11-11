@@ -1,6 +1,6 @@
 const express = require(`express`);
 const expressLayouts = require(`express-ejs-layouts`);
-const { loadContact, findContact, addContact, cekDuplikat, deleteContact } = require(`./utils/contacts`);
+const { loadContact, findContact, addContact, cekDuplikat, deleteContact, updateContacts } = require(`./utils/contacts`);
 const { body, validationResult, check } = require("express-validator");
 const session = require(`express-session`);
 const cookieParser = require(`cookie-parser`);
@@ -121,6 +121,50 @@ app.get(`/contact/delete/:nama`, (req, res) => {
     res.redirect(`/contact`);
   }
 });
+
+// halaman form ubah/edit data contact
+app.get(`/contact/edit/:nama`, (req, res) => {
+  const contact = findContact(req.params.nama);
+
+  res.render(`edit-contact`, {
+    title: `Edit Contact Page`,
+    layout: `layout/mainLayout`,
+    contact,
+  });
+});
+
+// proses ubah/edit data contact
+app.post(
+  `/contact/update`,
+  [
+    body(`nama`).custom((value, { req }) => {
+      const duplikat = cekDuplikat(value);
+      if (value !== req.body.oldNama && duplikat) {
+        throw new Error(`Name Already Registered!`);
+      }
+      return true;
+    }),
+    check(`email`, `Invalid Email Format!`).isEmail(),
+    check(`nohp`, `Invalid Phone Number (id-ID)!`).isMobilePhone(`id-ID`),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      // return res.status(400).json({ errors: errors.array() });
+      res.render(`edit-contact`, {
+        title: `Form Edit Contact`,
+        layout: `layout/mainLayout`,
+        errors: errors.array(),
+        contact: req.body,
+      });
+    } else {
+      updateContacts(req.body);
+      // kirimkan flash message
+      req.flash(`msg`, `contact edited successfully!`);
+      res.redirect(`/contact`);
+    }
+  }
+);
 
 // halaman detail contact
 app.get(`/contact/:nama`, (req, res) => {
